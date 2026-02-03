@@ -110,11 +110,17 @@ export function createAccessMiddleware(options: AccessMiddlewareOptions) {
       await next();
     } catch (err) {
       console.error('Access JWT verification failed:', err);
-      
+      const errorMessage = err instanceof Error ? err.message : 'JWT verification failed';
+
+      // DEBUG: Log configuration for troubleshooting
+      console.error('DEBUG - teamDomain:', teamDomain);
+      console.error('DEBUG - expectedAud:', expectedAud?.substring(0, 10) + '...');
+      console.error('DEBUG - JWT present:', !!jwt);
+
       if (type === 'json') {
         return c.json({
           error: 'Unauthorized',
-          details: err instanceof Error ? err.message : 'JWT verification failed',
+          details: errorMessage,
         }, 401);
       } else {
         return c.html(`
@@ -122,6 +128,7 @@ export function createAccessMiddleware(options: AccessMiddlewareOptions) {
             <body>
               <h1>Unauthorized</h1>
               <p>Your Cloudflare Access session is invalid or expired.</p>
+              <p><small>Debug: ${errorMessage}</small></p>
               <a href="https://${teamDomain}">Login again</a>
             </body>
           </html>
