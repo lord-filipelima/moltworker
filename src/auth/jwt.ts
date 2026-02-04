@@ -18,26 +18,23 @@ export async function verifyAccessJWT(
   teamDomain: string,
   expectedAud: string
 ): Promise<JWTPayload> {
-  // Ensure teamDomain has https:// prefix for issuer check
-  const issuer = teamDomain.startsWith('https://')
-    ? teamDomain
-    : `https://${teamDomain}`;
-
-  // DEBUG: Decode JWT to see actual claims
-  const decoded = decodeJwt(token);
-  console.log('DEBUG JWT - Expected issuer:', issuer);
-  console.log('DEBUG JWT - Actual issuer:', decoded.iss);
-  console.log('DEBUG JWT - Expected aud:', expectedAud);
-  console.log('DEBUG JWT - Actual aud:', decoded.aud);
+  // Normalize teamDomain - remove https:// prefix and trailing slashes
+  const normalizedDomain = teamDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const expectedIssuer = `https://${normalizedDomain}`;
 
   // Create JWKS from the team domain
-  const JWKS = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));
+  const JWKS = createRemoteJWKSet(new URL(`${expectedIssuer}/cdn-cgi/access/certs`));
 
-  // Verify the JWT using jose
+  // Verify the JWT signature and audience only (issuer check is manual for flexibility)
   const { payload } = await jwtVerify(token, JWKS, {
-    issuer,
     audience: expectedAud,
   });
+
+  // Manually verify issuer with normalization (handle trailing slashes)
+  const actualIssuer = (payload.iss || '').replace(/\/+$/, '');
+  if (actualIssuer !== expectedIssuer) {
+    throw new Error(`Issuer mismatch: expected "${expectedIssuer}", got "${actualIssuer}"`);
+  }
 
   // Cast to our JWTPayload type
   return payload as unknown as JWTPayload;
