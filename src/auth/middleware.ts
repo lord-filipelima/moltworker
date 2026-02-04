@@ -112,10 +112,20 @@ export function createAccessMiddleware(options: AccessMiddlewareOptions) {
       console.error('Access JWT verification failed:', err);
       const errorMessage = err instanceof Error ? err.message : 'JWT verification failed';
 
-      // DEBUG: Log configuration for troubleshooting
-      console.error('DEBUG - teamDomain:', teamDomain);
-      console.error('DEBUG - expectedAud:', expectedAud?.substring(0, 10) + '...');
-      console.error('DEBUG - JWT present:', !!jwt);
+      // DEBUG: Decode JWT to show actual values
+      let debugInfo = `Error: ${errorMessage}`;
+      try {
+        const parts = jwt.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          debugInfo += `<br>Expected issuer: https://${teamDomain}`;
+          debugInfo += `<br>Actual issuer: ${payload.iss}`;
+          debugInfo += `<br>Expected aud: ${expectedAud?.substring(0, 20)}...`;
+          debugInfo += `<br>Actual aud: ${JSON.stringify(payload.aud)?.substring(0, 30)}...`;
+        }
+      } catch (e) {
+        debugInfo += `<br>Could not decode JWT`;
+      }
 
       if (type === 'json') {
         return c.json({
@@ -128,7 +138,7 @@ export function createAccessMiddleware(options: AccessMiddlewareOptions) {
             <body>
               <h1>Unauthorized</h1>
               <p>Your Cloudflare Access session is invalid or expired.</p>
-              <p><small>Debug: ${errorMessage}</small></p>
+              <p><small>${debugInfo}</small></p>
               <a href="https://${teamDomain}">Login again</a>
             </body>
           </html>

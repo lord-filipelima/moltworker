@@ -1,4 +1,4 @@
-import { jwtVerify, createRemoteJWKSet, type JWTPayload as JoseJWTPayload } from 'jose';
+import { jwtVerify, createRemoteJWKSet, decodeJwt, type JWTPayload as JoseJWTPayload } from 'jose';
 import type { JWTPayload } from '../types';
 
 /**
@@ -22,6 +22,13 @@ export async function verifyAccessJWT(
   const issuer = teamDomain.startsWith('https://')
     ? teamDomain
     : `https://${teamDomain}`;
+
+  // DEBUG: Decode JWT to see actual claims
+  const decoded = decodeJwt(token);
+  console.log('DEBUG JWT - Expected issuer:', issuer);
+  console.log('DEBUG JWT - Actual issuer:', decoded.iss);
+  console.log('DEBUG JWT - Expected aud:', expectedAud);
+  console.log('DEBUG JWT - Actual aud:', decoded.aud);
 
   // Create JWKS from the team domain
   const JWKS = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));
