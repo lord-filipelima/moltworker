@@ -55,6 +55,9 @@ export function buildEnvVars(env: MoltbotEnv): Record<string, string> {
   if (env.SLACK_APP_TOKEN) envVars.SLACK_APP_TOKEN = env.SLACK_APP_TOKEN;
   if (env.CDP_SECRET) envVars.CDP_SECRET = env.CDP_SECRET;
   if (env.WORKER_URL) envVars.WORKER_URL = env.WORKER_URL;
+  // Supabase configuration for Squad Builder integration
+  if (env.SUPABASE_URL) envVars.SUPABASE_URL = env.SUPABASE_URL;
+  if (env.SUPABASE_SERVICE_KEY) envVars.SUPABASE_SERVICE_KEY = env.SUPABASE_SERVICE_KEY;
 
   return envVars;
 }
