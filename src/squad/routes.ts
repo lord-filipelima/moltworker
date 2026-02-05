@@ -21,12 +21,14 @@ import type {
 
 /**
  * Squad Builder Routes
- * All routes are protected by Cloudflare Access
+ * Routes are PUBLIC for easier integration with external dashboards
+ * Authentication can be added per-route if needed
  */
 const squadRoutes = new Hono<AppEnv>();
 
-// Middleware: Verify Cloudflare Access JWT for all squad routes
-squadRoutes.use('*', createAccessMiddleware({ type: 'json' }));
+// NOTE: Authentication removed for easier dashboard integration
+// To add auth back, uncomment the line below:
+// squadRoutes.use('*', createAccessMiddleware({ type: 'json' }));
 
 // Singleton instances (per-request in workers, but shared within a request)
 let supabaseClient: SupabaseClient | null = null;
