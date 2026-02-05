@@ -18,6 +18,49 @@ import type {
   DiscordWebhookPayload,
   DiscordNotification,
 } from './types';
+
+// =============================================================================
+// DISCORD SIGNATURE VERIFICATION
+// =============================================================================
+
+/**
+ * Verify Discord interaction signature using Ed25519
+ */
+async function verifyDiscordSignature(
+  publicKey: string,
+  signature: string,
+  timestamp: string,
+  body: string
+): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const message = encoder.encode(timestamp + body);
+
+    // Convert hex strings to Uint8Array
+    const signatureBytes = new Uint8Array(
+      signature.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+    );
+    const publicKeyBytes = new Uint8Array(
+      publicKey.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+    );
+
+    // Import the public key
+    const key = await crypto.subtle.importKey(
+      'raw',
+      publicKeyBytes,
+      { name: 'Ed25519', namedCurve: 'Ed25519' },
+      false,
+      ['verify']
+    );
+
+    // Verify the signature
+    const isValid = await crypto.subtle.verify('Ed25519', key, signatureBytes, message);
+    return isValid;
+  } catch (error) {
+    console.error('[Discord] Signature verification error:', error);
+    return false;
+  }
+}
 import {
   getNotificationService,
   NotificationConfig,
@@ -596,6 +639,23 @@ squadRoutes.get('/workflows/executions/:id', async (c) => {
 squadRoutes.post('/discord/webhook', async (c) => {
   try {
     const body = await c.req.text();
+
+    // Discord Public Key for signature verification
+    const DISCORD_PUBLIC_KEY = c.env.DISCORD_PUBLIC_KEY || 'd3e0b981af5b846c7cfb594b787d10afefd60804ca03b16ba29ca8de636b028c';
+
+    // Get signature headers
+    const signature = c.req.header('X-Signature-Ed25519');
+    const timestamp = c.req.header('X-Signature-Timestamp');
+
+    // Verify signature if headers are present
+    if (signature && timestamp) {
+      const isValid = await verifyDiscordSignature(DISCORD_PUBLIC_KEY, signature, timestamp, body);
+      if (!isValid) {
+        console.log('[Discord] Invalid signature');
+        return c.json({ error: 'Invalid signature' }, 401);
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = JSON.parse(body) as any;
 
