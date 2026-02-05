@@ -844,7 +844,7 @@ squadRoutes.post('/notifications/test/:squadId', async (c) => {
     }
 
     // Send test notification
-    const testEvent = body.event || 'task_completed';
+    const testEvent = ('event' in body && body.event) ? body.event : 'task_completed';
     const result = await notificationService.notify(squadId, {
       event: testEvent,
       message: `Test notification from Squad Builder API`,
