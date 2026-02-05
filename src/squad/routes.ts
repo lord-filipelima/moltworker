@@ -365,9 +365,19 @@ squadRoutes.get('/tasks/:id', async (c) => {
 // POST /api/squad/tasks/:id/execute - Execute task
 squadRoutes.post('/tasks/:id/execute', async (c) => {
   try {
+    const supabase = getSupabase(c.env);
     const orch = getOrchestrator(c.env, c.get('sandbox'));
     const taskId = c.req.param('id');
     const body = await c.req.json<Partial<ExecuteTaskRequest>>();
+
+    // Get task to find squad_id
+    const task = await supabase.getTask(taskId);
+    if (!task) {
+      return c.json({ success: false, error: 'Task not found' }, 404);
+    }
+
+    // Auto-initialize orchestrator with the task's squad
+    await orch.initialize(task.squad_id);
 
     const result = await orch.executeTask({
       taskId,
