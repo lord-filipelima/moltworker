@@ -28,6 +28,7 @@ import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp } from './routes';
+import { squadRoutes } from './squad';
 import { redactSensitiveParams } from './utils/logging';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
@@ -201,6 +202,9 @@ app.use('*', async (c, next) => {
 
 // Mount API routes (protected by Cloudflare Access)
 app.route('/api', api);
+
+// Mount Squad Builder API routes (protected by Cloudflare Access)
+app.route('/api/squad', squadRoutes);
 
 // Mount Admin UI routes (protected by Cloudflare Access)
 app.route('/_admin', adminUi);
