@@ -866,6 +866,25 @@ squadRoutes.get('/notifications/events', async (c) => {
 // ORCHESTRATOR CONTROL
 // =============================================================================
 
+// POST /api/squad/orchestrator/init/:squadId - Initialize orchestrator with a squad
+squadRoutes.post('/orchestrator/init/:squadId', async (c) => {
+  try {
+    const orch = getOrchestrator(c.env, c.get('sandbox'));
+    const squadId = c.req.param('squadId');
+
+    await orch.initialize(squadId);
+
+    return c.json({
+      success: true,
+      message: `Orchestrator initialized for squad ${squadId}`,
+      status: orch.getStatus(),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
 // POST /api/squad/orchestrator/start - Start auto-processing
 squadRoutes.post('/orchestrator/start', async (c) => {
   try {
