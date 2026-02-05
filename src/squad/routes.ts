@@ -592,25 +592,68 @@ squadRoutes.get('/workflows/executions/:id', async (c) => {
 // DISCORD INTEGRATION
 // =============================================================================
 
-// POST /api/squad/discord/webhook - Receive Discord webhook events
+// POST /api/squad/discord/webhook - Receive Discord webhook events (Interactions Endpoint)
 squadRoutes.post('/discord/webhook', async (c) => {
   try {
-    // Verify webhook signature if configured
-    const webhookSecret = c.env.DISCORD_WEBHOOK_SECRET;
-    if (webhookSecret) {
-      const signature = c.req.header('X-Signature-Ed25519');
-      const timestamp = c.req.header('X-Signature-Timestamp');
+    const body = await c.req.text();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload = JSON.parse(body) as any;
 
-      if (!signature || !timestamp) {
-        return c.json({ error: 'Missing signature headers' }, 401);
-      }
-
-      // TODO: Verify Ed25519 signature
+    // Discord Interaction Type 1 = PING (verification)
+    if (payload.type === 1) {
+      console.log('[Discord] Received PING verification request');
+      return c.json({ type: 1 }); // Respond with PONG
     }
 
-    const payload = await c.req.json<DiscordWebhookPayload>();
+    // Discord Interaction Type 2 = APPLICATION_COMMAND (slash commands)
+    if (payload.type === 2 && payload.data?.name) {
+      const commandName = payload.data.name;
+      const options = payload.data.options || [];
+      console.log(`[Discord] Received slash command: /${commandName}`);
 
-    // Handle different event types
+      // Handle /ping command
+      if (commandName === 'ping') {
+        return c.json({
+          type: 4, // CHANNEL_MESSAGE_WITH_SOURCE
+          data: {
+            content: '🏓 Pong! Squad Builder online e funcionando!',
+          },
+        });
+      }
+
+      // Handle /task command
+      if (commandName === 'task') {
+        const description = options[0]?.value || 'Sem descrição';
+        return c.json({
+          type: 4,
+          data: {
+            content: `📋 **Nova Task Recebida**\n\n> ${description}\n\n_O Maestro vai analisar e distribuir para a squad._`,
+          },
+        });
+      }
+
+      // Handle /status command
+      if (commandName === 'status') {
+        const orch = getOrchestrator(c.env, c.get('sandbox'));
+        const status = orch.getStatus();
+        return c.json({
+          type: 4,
+          data: {
+            content: `📊 **Squad Status**\n\n🤖 Agentes: ${status.agents.length}\n📋 Fila: ${status.queue.queueSize} tasks\n⚡ Ativas: ${status.queue.activeExecutions}`,
+          },
+        });
+      }
+
+      // Unknown command
+      return c.json({
+        type: 4,
+        data: {
+          content: `❓ Comando desconhecido: /${commandName}`,
+        },
+      });
+    }
+
+    // Legacy webhook format (for backwards compatibility)
     if (payload.type === 'command' && payload.command) {
       const { name, args } = payload.command;
       const supabase = getSupabase(c.env);
