@@ -35,6 +35,7 @@ export {
   NotificationService,
   getNotificationService,
   notifyTaskEvent,
+  setDefaultWebhookUrl,
 } from './notification-service';
 export type {
   NotificationConfig,

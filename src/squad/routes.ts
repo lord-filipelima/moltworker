@@ -23,6 +23,7 @@ import {
   NotificationConfig,
   NotificationEvent,
   notifyTaskEvent,
+  setDefaultWebhookUrl,
 } from './notification-service';
 
 /**
@@ -35,6 +36,14 @@ const squadRoutes = new Hono<AppEnv>();
 // NOTE: Authentication removed for easier dashboard integration
 // To add auth back, uncomment the line below:
 // squadRoutes.use('*', createAccessMiddleware({ type: 'json' }));
+
+// Middleware: Configure default Discord webhook from environment
+squadRoutes.use('*', async (c, next) => {
+  if (c.env.DISCORD_WEBHOOK_URL) {
+    setDefaultWebhookUrl(c.env.DISCORD_WEBHOOK_URL);
+  }
+  return next();
+});
 
 // Singleton instances (per-request in workers, but shared within a request)
 let supabaseClient: SupabaseClient | null = null;

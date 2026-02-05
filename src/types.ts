@@ -47,6 +47,7 @@ export interface MoltbotEnv {
   // Squad Builder - Discord integration
   DISCORD_WEBHOOK_SECRET?: string; // Secret for verifying Discord webhooks
   DISCORD_GUILD_ID?: string; // Discord server ID for slash commands
+  DISCORD_WEBHOOK_URL?: string; // Default Discord webhook URL for notifications
 }
 
 /**

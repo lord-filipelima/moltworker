@@ -61,6 +61,14 @@ export interface NotificationPayload {
 // NOTIFICATION SERVICE
 // =============================================================================
 
+// Default webhook URL (can be set via environment or configured per-squad)
+let defaultWebhookUrl: string | null = null;
+
+export function setDefaultWebhookUrl(url: string): void {
+  defaultWebhookUrl = url;
+  console.log('[NotificationService] Default webhook URL configured');
+}
+
 export class NotificationService {
   private configs: Map<string, NotificationConfig> = new Map();
   private lastNotifications: Map<string, number> = new Map();
@@ -104,8 +112,25 @@ export class NotificationService {
     squadId: string,
     payload: NotificationPayload
   ): Promise<{ success: boolean; error?: string }> {
-    const config = this.configs.get(squadId);
+    let config = this.configs.get(squadId);
+
+    // Use default webhook if no config exists
+    if (!config && defaultWebhookUrl) {
+      config = {
+        webhookUrl: defaultWebhookUrl,
+        events: [
+          'task_started',
+          'task_completed',
+          'task_blocked',
+          'task_unblocked',
+          'task_assigned',
+          'execution_error',
+        ],
+      };
+    }
+
     if (!config) {
+      console.log(`[NotificationService] No config for squad ${squadId} and no default webhook`);
       return { success: false, error: 'No notification config for squad' };
     }
 
