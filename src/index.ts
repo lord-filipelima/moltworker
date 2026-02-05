@@ -147,6 +147,10 @@ app.route('/', publicRoutes);
 // Mount CDP routes (uses shared secret auth via query param, not CF Access)
 app.route('/cdp', cdp);
 
+// Mount Squad Builder API routes (PUBLIC - no CF Access required)
+// These routes handle their own authentication if needed
+app.route('/api/squad', squadRoutes);
+
 // =============================================================================
 // PROTECTED ROUTES: Cloudflare Access authentication required
 // =============================================================================
@@ -202,9 +206,6 @@ app.use('*', async (c, next) => {
 
 // Mount API routes (protected by Cloudflare Access)
 app.route('/api', api);
-
-// Mount Squad Builder API routes (protected by Cloudflare Access)
-app.route('/api/squad', squadRoutes);
 
 // Mount Admin UI routes (protected by Cloudflare Access)
 app.route('/_admin', adminUi);
