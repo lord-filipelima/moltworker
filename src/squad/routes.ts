@@ -18,44 +18,36 @@ import type {
   DiscordWebhookPayload,
   DiscordNotification,
 } from './types';
+import nacl from 'tweetnacl';
 
 // =============================================================================
 // DISCORD SIGNATURE VERIFICATION
 // =============================================================================
 
 /**
- * Verify Discord interaction signature using Ed25519
+ * Convert hex string to Uint8Array
  */
-async function verifyDiscordSignature(
+function hexToUint8Array(hex: string): Uint8Array {
+  const matches = hex.match(/.{1,2}/g);
+  if (!matches) return new Uint8Array();
+  return new Uint8Array(matches.map((byte) => parseInt(byte, 16)));
+}
+
+/**
+ * Verify Discord interaction signature using Ed25519 (tweetnacl)
+ */
+function verifyDiscordSignature(
   publicKey: string,
   signature: string,
   timestamp: string,
   body: string
-): Promise<boolean> {
+): boolean {
   try {
-    const encoder = new TextEncoder();
-    const message = encoder.encode(timestamp + body);
+    const message = new TextEncoder().encode(timestamp + body);
+    const signatureBytes = hexToUint8Array(signature);
+    const publicKeyBytes = hexToUint8Array(publicKey);
 
-    // Convert hex strings to Uint8Array
-    const signatureBytes = new Uint8Array(
-      signature.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-    );
-    const publicKeyBytes = new Uint8Array(
-      publicKey.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-    );
-
-    // Import the public key
-    const key = await crypto.subtle.importKey(
-      'raw',
-      publicKeyBytes,
-      { name: 'Ed25519', namedCurve: 'Ed25519' },
-      false,
-      ['verify']
-    );
-
-    // Verify the signature
-    const isValid = await crypto.subtle.verify('Ed25519', key, signatureBytes, message);
-    return isValid;
+    return nacl.sign.detached.verify(message, signatureBytes, publicKeyBytes);
   } catch (error) {
     console.error('[Discord] Signature verification error:', error);
     return false;
@@ -649,11 +641,12 @@ squadRoutes.post('/discord/webhook', async (c) => {
 
     // Verify signature if headers are present
     if (signature && timestamp) {
-      const isValid = await verifyDiscordSignature(DISCORD_PUBLIC_KEY, signature, timestamp, body);
+      const isValid = verifyDiscordSignature(DISCORD_PUBLIC_KEY, signature, timestamp, body);
       if (!isValid) {
         console.log('[Discord] Invalid signature');
         return c.json({ error: 'Invalid signature' }, 401);
       }
+      console.log('[Discord] Signature verified successfully');
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
