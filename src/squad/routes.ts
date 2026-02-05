@@ -385,6 +385,22 @@ squadRoutes.post('/tasks/:id/execute', async (c) => {
       return c.json({ success: false, error: 'Task not found' }, 404);
     }
 
+    // Configure notifications for this squad if webhook URL is available
+    if (c.env.DISCORD_WEBHOOK_URL) {
+      const notificationService = getNotificationService();
+      notificationService.configure(task.squad_id, {
+        webhookUrl: c.env.DISCORD_WEBHOOK_URL,
+        events: [
+          'task_started',
+          'task_completed',
+          'task_blocked',
+          'task_unblocked',
+          'task_assigned',
+          'execution_error',
+        ],
+      });
+    }
+
     // Auto-initialize orchestrator with the task's squad
     await orch.initialize(task.squad_id);
 
