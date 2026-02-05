@@ -18,6 +18,12 @@ import type {
   DiscordWebhookPayload,
   DiscordNotification,
 } from './types';
+import {
+  getNotificationService,
+  NotificationConfig,
+  NotificationEvent,
+  notifyTaskEvent,
+} from './notification-service';
 
 /**
  * Squad Builder Routes
@@ -691,6 +697,169 @@ squadRoutes.post('/discord/notify', async (c) => {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return c.json({ success: false, error: message }, 500);
   }
+});
+
+// =============================================================================
+// NOTIFICATION CONFIGURATION
+// =============================================================================
+
+// GET /api/squad/notifications/config/:squadId - Get notification config
+squadRoutes.get('/notifications/config/:squadId', async (c) => {
+  try {
+    const squadId = c.req.param('squadId');
+    const notificationService = getNotificationService();
+    const config = notificationService.getConfig(squadId);
+
+    return c.json({
+      success: true,
+      squadId,
+      configured: !!config,
+      config: config || null,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
+// POST /api/squad/notifications/config/:squadId - Set notification config
+squadRoutes.post('/notifications/config/:squadId', async (c) => {
+  try {
+    const squadId = c.req.param('squadId');
+    const body = await c.req.json<NotificationConfig>();
+
+    // Validate required fields
+    if (!body.webhookUrl) {
+      return c.json({ success: false, error: 'webhookUrl is required' }, 400);
+    }
+
+    if (!body.events || !Array.isArray(body.events) || body.events.length === 0) {
+      return c.json({ success: false, error: 'events array is required' }, 400);
+    }
+
+    // Validate events
+    const validEvents: NotificationEvent[] = [
+      'task_started',
+      'task_completed',
+      'task_blocked',
+      'task_unblocked',
+      'task_assigned',
+      'agent_activated',
+      'agent_deactivated',
+      'execution_error',
+      'workflow_started',
+      'workflow_completed',
+    ];
+
+    const invalidEvents = body.events.filter((e) => !validEvents.includes(e));
+    if (invalidEvents.length > 0) {
+      return c.json({
+        success: false,
+        error: `Invalid events: ${invalidEvents.join(', ')}`,
+        validEvents,
+      }, 400);
+    }
+
+    const notificationService = getNotificationService();
+    notificationService.configure(squadId, body);
+
+    return c.json({
+      success: true,
+      squadId,
+      config: body,
+      message: 'Notification config saved',
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
+// DELETE /api/squad/notifications/config/:squadId - Remove notification config
+squadRoutes.delete('/notifications/config/:squadId', async (c) => {
+  try {
+    const squadId = c.req.param('squadId');
+    const notificationService = getNotificationService();
+    const removed = notificationService.remove(squadId);
+
+    return c.json({
+      success: true,
+      squadId,
+      removed,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
+// POST /api/squad/notifications/test/:squadId - Test notification
+squadRoutes.post('/notifications/test/:squadId', async (c) => {
+  try {
+    const squadId = c.req.param('squadId');
+    const body = await c.req.json<{ event?: NotificationEvent }>().catch(() => ({}));
+    const notificationService = getNotificationService();
+
+    const config = notificationService.getConfig(squadId);
+    if (!config) {
+      return c.json({
+        success: false,
+        error: 'No notification config for this squad. Configure first via POST /notifications/config/:squadId',
+      }, 400);
+    }
+
+    // Send test notification
+    const testEvent = body.event || 'task_completed';
+    const result = await notificationService.notify(squadId, {
+      event: testEvent,
+      message: `Test notification from Squad Builder API`,
+      task: {
+        id: 'test-task-id',
+        squad_id: squadId,
+        titulo: 'Test Task',
+        status: 'concluido',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      agent: {
+        id: 'test-agent-id',
+        squad_id: squadId,
+        nome: 'Test Agent',
+        ativo: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    });
+
+    return c.json({
+      success: result.success,
+      squadId,
+      event: testEvent,
+      error: result.error,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return c.json({ success: false, error: message }, 500);
+  }
+});
+
+// GET /api/squad/notifications/events - List available notification events
+squadRoutes.get('/notifications/events', async (c) => {
+  return c.json({
+    success: true,
+    events: [
+      { name: 'task_started', description: 'When a task execution begins' },
+      { name: 'task_completed', description: 'When a task is marked as completed' },
+      { name: 'task_blocked', description: 'When a task is blocked (requires attention)' },
+      { name: 'task_unblocked', description: 'When a blocked task is resumed' },
+      { name: 'task_assigned', description: 'When a task is assigned to an agent' },
+      { name: 'agent_activated', description: 'When an agent is activated' },
+      { name: 'agent_deactivated', description: 'When an agent is deactivated' },
+      { name: 'execution_error', description: 'When a task execution fails with error' },
+      { name: 'workflow_started', description: 'When a workflow begins execution' },
+      { name: 'workflow_completed', description: 'When a workflow finishes execution' },
+    ],
+  });
 });
 
 // =============================================================================

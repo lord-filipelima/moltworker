@@ -21,6 +21,7 @@ import type {
 import { TaskQueue } from './queue';
 import { PersonaManager } from './persona';
 import { SupabaseClient } from './supabase-client';
+import { getNotificationService } from './notification-service';
 
 /**
  * Agent Orchestrator
@@ -155,6 +156,14 @@ export class AgentOrchestrator {
     // Update task status in database
     await this.supabase.assignTask(task.id, selectedAgent.id);
 
+    // Send notification: task assigned
+    const notificationService = getNotificationService();
+    await notificationService.notify(task.squad_id, {
+      event: 'task_assigned',
+      task,
+      agent: selectedAgent.agente,
+    });
+
     // Execute the task asynchronously
     this.runTaskExecution(selectedAgent, task, execution, context).catch((err) => {
       console.error(`[Orchestrator] Task execution error:`, err);
@@ -194,6 +203,14 @@ export class AgentOrchestrator {
         'resposta'
       );
 
+      // Send notification: task started
+      const notificationService = getNotificationService();
+      await notificationService.notify(task.squad_id, {
+        event: 'task_started',
+        task,
+        agent: agent.agente,
+      });
+
       this.queue.updateProgress(execution.id, 10, 'Agent initialized');
 
       // Check for block triggers before starting
@@ -215,6 +232,14 @@ export class AgentOrchestrator {
           blockTrigger.message,
           'bloqueio'
         );
+
+        // Send notification: task blocked
+        await notificationService.notify(task.squad_id, {
+          event: 'task_blocked',
+          task,
+          agent: agent.agente,
+          message: blockTrigger.message,
+        });
 
         agent.status = 'blocked';
         agent.metrics.tasksBlocked++;
@@ -258,6 +283,14 @@ export class AgentOrchestrator {
         'entrega'
       );
 
+      // Send notification: task completed
+      await notificationService.notify(task.squad_id, {
+        event: 'task_completed',
+        task,
+        agent: agent.agente,
+        duration: Date.now() - startTime,
+      });
+
       // Update agent metrics
       agent.status = 'idle';
       agent.currentTask = undefined;
@@ -280,6 +313,15 @@ export class AgentOrchestrator {
         `Error: ${errorMessage}`,
         'bloqueio'
       );
+
+      // Send notification: execution error
+      const notificationService = getNotificationService();
+      await notificationService.notify(task.squad_id, {
+        event: 'execution_error',
+        task,
+        agent: agent.agente,
+        error: errorMessage,
+      });
 
       // Update agent
       agent.status = 'idle';
@@ -317,6 +359,13 @@ export class AgentOrchestrator {
     if (!task || task.status !== 'bloqueado') {
       return null;
     }
+
+    // Send notification: task unblocked
+    const notificationService = getNotificationService();
+    await notificationService.notify(task.squad_id, {
+      event: 'task_unblocked',
+      task,
+    });
 
     return this.executeTask({ taskId: task.id });
   }

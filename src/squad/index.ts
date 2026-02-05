@@ -30,5 +30,17 @@ export {
 // Workflow engine
 export { WorkflowEngine, WORKFLOW_TEMPLATES } from './workflow-engine';
 
+// Notification service
+export {
+  NotificationService,
+  getNotificationService,
+  notifyTaskEvent,
+} from './notification-service';
+export type {
+  NotificationConfig,
+  NotificationEvent,
+  NotificationPayload,
+} from './notification-service';
+
 // Route handlers
 export { squadRoutes } from './routes';
