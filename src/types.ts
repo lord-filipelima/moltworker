@@ -38,6 +38,17 @@ export interface MoltbotEnv {
   BROWSER?: Fetcher;
   CDP_SECRET?: string; // Shared secret for CDP endpoint authentication
   WORKER_URL?: string; // Public URL of the worker (for CDP endpoint)
+
+  // Squad Builder - Supabase configuration
+  SUPABASE_URL?: string; // Supabase project URL
+  SUPABASE_ANON_KEY?: string; // Supabase anonymous key (public)
+  SUPABASE_SERVICE_KEY?: string; // Supabase service role key (server-side only)
+
+  // Squad Builder - Discord integration
+  DISCORD_WEBHOOK_SECRET?: string; // Secret for verifying Discord webhooks
+  DISCORD_GUILD_ID?: string; // Discord server ID for slash commands
+  DISCORD_WEBHOOK_URL?: string; // Default Discord webhook URL for notifications
+  DISCORD_PUBLIC_KEY?: string; // Discord application public key for signature verification
 }
 
 /**

@@ -28,6 +28,7 @@ import { MOLTBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureMoltbotGateway, findExistingMoltbotProcess, syncToR2 } from './gateway';
 import { publicRoutes, api, adminUi, debug, cdp } from './routes';
+import { squadRoutes } from './squad';
 import { redactSensitiveParams } from './utils/logging';
 import loadingPageHtml from './assets/loading.html';
 import configErrorHtml from './assets/config-error.html';
@@ -146,6 +147,10 @@ app.route('/', publicRoutes);
 // Mount CDP routes (uses shared secret auth via query param, not CF Access)
 app.route('/cdp', cdp);
 
+// Mount Squad Builder API routes (PUBLIC - no CF Access required)
+// These routes handle their own authentication if needed
+app.route('/api/squad', squadRoutes);
+
 // =============================================================================
 // PROTECTED ROUTES: Cloudflare Access authentication required
 // =============================================================================
@@ -189,6 +194,13 @@ app.use('*', async (c, next) => {
 
 // Middleware: Cloudflare Access authentication for protected routes
 app.use('*', async (c, next) => {
+  const url = new URL(c.req.url);
+
+  // Skip auth for Squad Builder API routes (public)
+  if (url.pathname.startsWith('/api/squad')) {
+    return next();
+  }
+
   // Determine response type based on Accept header
   const acceptsHtml = c.req.header('Accept')?.includes('text/html');
   const middleware = createAccessMiddleware({
