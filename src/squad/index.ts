@@ -13,6 +13,8 @@ export { SupabaseClient } from './supabase-client';
 export { AgentOrchestrator } from './orchestrator';
 export { TaskQueue } from './queue';
 export { PersonaManager, DEFAULT_PERSONAS, DEFAULT_BLOCK_TRIGGERS } from './persona';
+export { OpenClawExecutor } from './openclaw-executor';
+export type { OpenClawResult, ExecuteOptions } from './openclaw-executor';
 
 // Discord integration
 export {

@@ -39,8 +39,8 @@ describe('verifyAccessJWT', () => {
       new URL('https://myteam.cloudflareaccess.com/cdn-cgi/access/certs')
     );
 
+    // Issuer is verified manually (not passed to jwtVerify) for flexible normalization
     expect(jwtVerify).toHaveBeenCalledWith('test.jwt.token', 'mock-jwks', {
-      issuer: 'https://myteam.cloudflareaccess.com',
       audience: 'test-aud',
     });
 
@@ -74,8 +74,8 @@ describe('verifyAccessJWT', () => {
       new URL('https://myteam.cloudflareaccess.com/cdn-cgi/access/certs')
     );
 
+    // Issuer is verified manually (not passed to jwtVerify) for flexible normalization
     expect(jwtVerify).toHaveBeenCalledWith('test.jwt.token', 'mock-jwks', {
-      issuer: 'https://myteam.cloudflareaccess.com',
       audience: 'test-aud',
     });
   });

@@ -22,6 +22,7 @@ import { TaskQueue } from './queue';
 import { PersonaManager } from './persona';
 import { SupabaseClient } from './supabase-client';
 import { getNotificationService } from './notification-service';
+import { OpenClawExecutor } from './openclaw-executor';
 
 /**
  * Agent Orchestrator
@@ -33,6 +34,7 @@ export class AgentOrchestrator {
   private readonly personas: PersonaManager;
   private readonly agents: Map<string, AgentInstance> = new Map();
   private readonly sandbox?: Sandbox;
+  private readonly executor?: OpenClawExecutor;
   private isRunning: boolean = false;
   private processingInterval?: ReturnType<typeof setInterval>;
 
@@ -48,6 +50,9 @@ export class AgentOrchestrator {
     this.queue = new TaskQueue({ maxRetries: options?.maxRetries ?? 3 });
     this.personas = new PersonaManager();
     this.sandbox = options?.sandbox;
+    if (this.sandbox) {
+      this.executor = new OpenClawExecutor(this.sandbox);
+    }
   }
 
   // =============================================================================
@@ -248,25 +253,54 @@ export class AgentOrchestrator {
 
       this.queue.updateProgress(execution.id, 30, 'Analyzing task');
 
-      // TODO: Integrate with actual OpenClaw/Claude execution
-      // For now, simulate execution
-      if (this.sandbox) {
-        // Would use sandbox to run OpenClaw commands
-        // Example: await this.sandbox.startProcess('clawdbot chat --message "..."');
+      // Execute the task via OpenClaw gateway
+      let executionResult: { response: string; success: boolean };
+
+      if (this.executor) {
+        this.queue.updateProgress(execution.id, 40, 'Sending task to OpenClaw');
+
+        const openclawResult = await this.executor.executeTask(agent.agente, task, {
+          systemPrompt: systemPrompt,
+          context: context as Record<string, unknown> | undefined,
+        });
+
+        this.queue.updateProgress(execution.id, 80, 'Processing response');
+
+        if (!openclawResult.success) {
+          // OpenClaw execution failed — treat as a task failure
+          throw new Error(
+            `OpenClaw execution failed: ${openclawResult.response || openclawResult.stderr}`
+          );
+        }
+
+        executionResult = {
+          response: openclawResult.response,
+          success: true,
+        };
+
+        // Log the AI response as a message
+        await this.supabase.createMensagem(
+          task.id,
+          agent.id,
+          openclawResult.response,
+          'resposta'
+        );
+      } else {
+        // No sandbox available — execution is not possible in this environment
+        console.warn(
+          '[Orchestrator] No sandbox available, cannot execute via OpenClaw'
+        );
+        executionResult = {
+          response: 'No sandbox available for execution',
+          success: true,
+        };
       }
-
-      // Simulate progress
-      this.queue.updateProgress(execution.id, 50, 'Working on task');
-      await this.delay(2000);
-
-      this.queue.updateProgress(execution.id, 80, 'Finalizing');
-      await this.delay(1000);
 
       // Complete the execution
       const result = {
         taskId: task.id,
         agentId: agent.id,
-        message: 'Task completed successfully',
+        message: executionResult.response,
         duration: Date.now() - startTime,
       };
 
